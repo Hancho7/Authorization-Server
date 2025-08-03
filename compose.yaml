@@ -7,3 +7,9 @@ services:
       - 'POSTGRES_USER=myuser'
     ports:
       - '5432'
+
+  mail:
+    image: 'mailhog/mailhog'
+    ports:
+      - '1025:1025'
+      - '8025:8025'
