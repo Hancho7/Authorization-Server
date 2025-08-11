@@ -1,0 +1,56 @@
+services:
+  postgresql:
+    image: postgres:15-alpine
+    container_name: auth-postgres
+    environment:
+      POSTGRES_DB: auth-service
+      POSTGRES_USER: authorization-server
+      POSTGRES_PASSWORD: auth@123
+    ports:
+      - "5433:5432"  # Changed to avoid port conflict
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./src/main/resources/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    networks:
+      - auth-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U authorization-server -d auth-service"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  authorization-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: auth-server
+    environment:
+      SPRING_PROFILES_ACTIVE: production
+      DB_HOST: postgresql
+      DB_PORT: 5432
+      DB_NAME: auth-service
+      DB_USERNAME: authorization-server
+      DB_PASSWORD: auth@123
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    networks:
+      - auth-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  auth-network:
+    driver: bridge
